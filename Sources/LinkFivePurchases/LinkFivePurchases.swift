@@ -88,9 +88,7 @@ public final class LinkFivePurchases: NSObject {
                 if productIds.isEmpty {
                     self?.fetchProductsCompletion?(.failure(LinkFivePurchasesError.noProductIdsFound))
                 } else {
-                    
-                    var resultingProductIds = productIds + ["monthly_lite"]
-                    let request = SKProductsRequest(productIdentifiers: Set(resultingProductIds))
+                    let request = SKProductsRequest(productIdentifiers: Set(productIds))
                     request.delegate = self
                     request.start()
                 }
