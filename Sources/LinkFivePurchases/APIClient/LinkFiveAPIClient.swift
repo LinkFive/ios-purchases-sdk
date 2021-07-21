@@ -65,22 +65,38 @@ class LinkFiveAPIClient {
     /// Fetches and returns the available subscriptions.
     /// - Parameters:
     ///     - completion: The completion of the subscription fetch.
-    func fetchSubscriptions(completion: @escaping (Swift.Result<SubscriptionList, Error>) -> Void) {
+    func fetchSubscriptions(completion: @escaping (Result<LinkFiveSubscriptionList>) -> Void) {
         request(path: "v1/subscriptions", httpMethod: HttpMethod.GET, completion: completion)
     }
     
     /// Verifies the receipt with the given parameters.
     /// - Parameters:
     ///     - receipt: The receipt.
-    func verify(receipt: String, completion: @escaping (Swift.Result<LinkFiveReceiptInfo, Error>) -> Void) {
+    func verify(receipt: String, completion: @escaping (Result<LinkFiveReceiptInfo>) -> Void) {
         let body = LinkFiveReceiptInfo.Request(receipt: receipt).json
         request(path: "v1/purchases/apple/verify", httpMethod: HttpMethod.POST, body: body, completion: completion)
+    }
+    
+    /// Tells LinkFive that a product has been purchased.
+    /// - Parameters:
+    ///     - product: The purchased product.
+    ///     - transaction: The transaction..
+    func purchase(product: SKProduct, transaction: SKPaymentTransaction, completion: @escaping (Result<LinkFivePurchase>) -> Void) {
+        let body = LinkFivePurchase.Request(sku: product.productIdentifier,
+                                            country: product.priceLocale.regionCode ?? "",
+                                            currency: product.priceLocale.currencyCode ?? "",
+                                            price: product.price.doubleValue,
+                                            transactionId: transaction.transactionIdentifier ?? "",
+                                            originalTransactionId: transaction.original?.transactionIdentifier ?? transaction.transactionIdentifier ?? "",
+                                            purchaseDate: transaction.transactionDate ?? Date()).json
+        
+        request(path: "v1/purchases/apple", httpMethod: HttpMethod.POST, body: body, completion: completion)
     }
     
     private func request<M: Codable>(path: String,
                                      httpMethod: HttpMethod,
                                      body: JSON? = nil,
-                                     completion: @escaping (Swift.Result<M, Error>) -> Void) {
+                                     completion: @escaping (Result<M>) -> Void) {
         var request = URLRequest(url: environment.url.appendingPathComponent(path))
         request.httpMethod = httpMethod.rawValue
         request.allHTTPHeaderFields = header

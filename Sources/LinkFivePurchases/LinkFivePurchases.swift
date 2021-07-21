@@ -41,6 +41,8 @@ public final class LinkFivePurchases: NSObject {
         }
     }
     
+    private var productToPurchase: SKProduct?
+    
     
     //#################################################################################
     // MARK: - Initialization
@@ -106,6 +108,8 @@ public final class LinkFivePurchases: NSObject {
             buyProductCompletion?(.failure(LinkFivePurchasesError.cantMakePayments))
             return
         }
+        
+        productToPurchase = product
         
         let payment = SKPayment(product: product)
         SKPaymentQueue.default().add(payment)
@@ -174,6 +178,19 @@ public final class LinkFivePurchases: NSObject {
             }
         })
     }
+    
+    private func logPurchaseToLinkFive(transaction: SKPaymentTransaction) {
+        guard let product = productToPurchase else { return }
+        
+        apiClient?.purchase(product: product, transaction: transaction, completion: { result in
+            switch result {
+            case .failure(let error):
+                LinkFiveLogger.debug(error)
+            case .success:
+                self.productToPurchase = nil
+            }
+        })
+    }
 }
 
 
@@ -210,6 +227,7 @@ extension LinkFivePurchases: SKPaymentTransactionObserver {
         transactions.forEach { transaction in
             switch transaction.transactionState {
             case .purchased:
+                logPurchaseToLinkFive(transaction: transaction)
                 buyProductCompletion?(.success(true))
                 SKPaymentQueue.default().finishTransaction(transaction)
                 verifyReceipt()
