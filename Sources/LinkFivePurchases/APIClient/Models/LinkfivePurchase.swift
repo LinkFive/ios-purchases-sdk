@@ -7,7 +7,7 @@
 
 import Foundation
 
-struct LinkFivePurchase: Codable {
+struct LinkFivePurchase {
     
     struct Request: Encodable {
         /// The product identifier.
@@ -29,6 +29,6 @@ struct LinkFivePurchase: Codable {
         let originalTransactionId: String
         
         /// The date of the purchase.
-        let purchaseDate: Date
+        let purchaseDate: String
     }
 }

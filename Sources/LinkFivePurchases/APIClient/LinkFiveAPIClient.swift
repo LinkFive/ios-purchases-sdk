@@ -35,12 +35,18 @@ class LinkFiveAPIClient {
                 "X-App-Version": (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "NO_APP_VERSION"]
     }
     
-    private lazy var dateFormatter: DateFormatter = {
+    private lazy var decodingDateFormatter: DateFormatter = {
         let dateFormatter = DateFormatter()
         dateFormatter.calendar = Calendar(identifier: .iso8601)
         dateFormatter.timeZone = TimeZone(secondsFromGMT: 0)
         dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.000'Z'"
         return dateFormatter
+    }()
+    
+    private lazy var iso8601DateFormatter: ISO8601DateFormatter = {
+        let iso8601DateFormatter = ISO8601DateFormatter()
+        iso8601DateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return iso8601DateFormatter
     }()
     
     
@@ -81,14 +87,14 @@ class LinkFiveAPIClient {
     /// - Parameters:
     ///     - product: The purchased product.
     ///     - transaction: The transaction..
-    func purchase(product: SKProduct, transaction: SKPaymentTransaction, completion: @escaping (Result<LinkFivePurchase>) -> Void) {
+    func purchase(product: SKProduct, transaction: SKPaymentTransaction, completion: @escaping (Result<EmptyResponse>) -> Void) {
         let body = LinkFivePurchase.Request(sku: product.productIdentifier,
                                             country: product.priceLocale.regionCode ?? "",
                                             currency: product.priceLocale.currencyCode ?? "",
                                             price: product.price.doubleValue,
                                             transactionId: transaction.transactionIdentifier ?? "",
                                             originalTransactionId: transaction.original?.transactionIdentifier ?? transaction.transactionIdentifier ?? "",
-                                            purchaseDate: transaction.transactionDate ?? Date()).json
+                                            purchaseDate: iso8601DateFormatter.string(from: (transaction.transactionDate ?? Date()))).json
         
         request(path: "v1/purchases/apple", httpMethod: HttpMethod.POST, body: body, completion: completion)
     }
@@ -119,16 +125,20 @@ class LinkFiveAPIClient {
             }
             
             let decoder = JSONDecoder()
-            if #available(iOS 10.0, *) {
-                decoder.dateDecodingStrategy = .formatted(self.dateFormatter)
-            }
+            decoder.dateDecodingStrategy = .formatted(self.decodingDateFormatter)
             
-            guard let result = try? decoder.decode(M.self, from: data) else {
-                completion(.failure(LinkFivePurchasesAPIError.decoding))
+            if let httpResonse = response as? HTTPURLResponse, httpResonse.statusCode == 201 {
+                completion(.success(EmptyResponse() as! M))
                 return
             }
             
-            completion(.success(result))
+            do {
+                let result = try decoder.decode(M.self, from: data)
+                completion(.success(result))
+            } catch {
+                LinkFiveLogger.debug(error)
+                completion(.failure(LinkFivePurchasesAPIError.decoding))
+            }
         }.resume()
     }
 }
